@@ -1,0 +1,118 @@
+name: Build Ditherer Android APK
+
+on:
+  push:
+    branches: [ditherer-android]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Android wrapper
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Extract wrapper sources on first run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f bootstrap/p01 ]; then
+            cat bootstrap/p* | base64 -d > /tmp/ditherer-wrapper.tar.xz
+            echo "fb744cc3ac141e14d8826002b65c8bab5e97d76e47736fb411ce87b3e6ba96bd  /tmp/ditherer-wrapper.tar.xz" | sha256sum -c -
+            tar -xJf /tmp/ditherer-wrapper.tar.xz
+            git rm bootstrap/p*
+            git add -A
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Import Ditherer Android wrapper sources'
+            git push origin HEAD:ditherer-android || echo '::warning::Could not commit import to branch, build will continue'
+          fi
+
+      - name: Fetch pinned Ditherer upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: gyng/ditherer
+          ref: f9608872658d53f4916a5eef4d3312019285a8f0
+          path: upstream
+          sparse-checkout: |
+            src
+            packages
+            public
+            scripts
+          sparse-checkout-cone-mode: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build Ditherer original web app
+        working-directory: upstream
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Include web assets in Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ditherer/src/main/assets/site
+          cp -a upstream/build/. ditherer/src/main/assets/site/
+          cp upstream/LICENSE ditherer/src/main/assets/site/UPSTREAM-LICENSE.txt
+          cp ditherer/mobile/android-bridge.js ditherer/src/main/assets/site/android-bridge.js
+          cp ditherer/mobile/android-mobile.css ditherer/src/main/assets/site/android-mobile.css
+          python3 - <<'PY'
+          from pathlib import Path
+          file = Path('ditherer/src/main/assets/site/index.html')
+          html = file.read_text(encoding='utf-8')
+          assert '</head>' in html and '</body>' in html
+          html = html.replace('</head>', '<link rel="stylesheet" href="./android-mobile.css"></head>')
+          html = html.replace('</body>', '<script src="./android-bridge.js"></script></body>')
+          file.write_text(html, encoding='utf-8')
+          assert len(list(file.parent.rglob('*.js'))) >= 2
+          print('Web assets:', sum(f.stat().st_size for f in file.parent.rglob('*') if f.is_file()))
+          PY
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Provision Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            curl -fL --retry 3 'https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip' -o /tmp/cmdline-tools.zip
+            mkdir -p /tmp/ditherer-tools
+            unzip -q /tmp/cmdline-tools.zip -d /tmp/ditherer-tools
+            mv /tmp/ditherer-tools/cmdline-tools "$SDK_ROOT/cmdline-tools/latest"
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          printf 'y\n' | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compile debug APK
+        run: gradle --no-daemon :ditherer:assembleDebug
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ditherer-Android-debug-APK
+          path: ditherer/build/outputs/apk/debug/ditherer-debug.apk
+          if-no-files-found: error
+          retention-days: 14
