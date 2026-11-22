@@ -1,0 +1,68 @@
+name: Build Form Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bootstrap/**"
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Install Android port source on first build
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f bootstrap/p01 ]; then
+            cat bootstrap/p0* | base64 --decode > form-mobile.tar.xz
+            echo "e925ede1ea0499855eeccf2f3c7581d4dbbe218078747ecbe15a8951e2381b26  form-mobile.tar.xz" | sha256sum -c -
+            tar -xJf form-mobile.tar.xz --exclude='./.github/workflows/android-apk.yml'
+            rm form-mobile.tar.xz
+            git rm bootstrap/p0*
+            git add -A
+            git -c user.name='form-mobile-bot' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Import Android port source"
+            git push origin HEAD:main || echo "::warning::Source imported locally, but bot push was refused. APK build continues."
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Assemble debug APK
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Form-Mobile-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
