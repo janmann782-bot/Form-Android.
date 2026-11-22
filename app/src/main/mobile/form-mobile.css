@@ -1,0 +1,68 @@
+/* Android-only, touch-first layout layered over upstream Form styles. */
+* { -webkit-tap-highlight-color: transparent; }
+html, body { overscroll-behavior: none; }
+input, button, select { touch-action: manipulation; }
+@media (max-width: 800px) {
+  html { height: 100%; overflow: hidden; }
+  body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  header {
+    flex: 0 0 55px; height: 55px; min-height: 55px;
+    width: 100%; padding: 0 max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+  }
+  .brand { font-size: 26px; }
+  #upload { padding: 10px 12px; font-size: 12px; }
+  main {
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+    width: 100%; max-width: none; margin: 0;
+    padding: 0 max(11px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(11px, env(safe-area-inset-left));
+    gap: 12px; overflow: hidden;
+  }
+  #workspace {
+    height: 38%; min-height: 160px; flex: 0 0 38%;
+    border-radius: 14px; overflow: hidden;
+  }
+  #shader { max-height: none; }
+  .preview-meta { left: 13px; right: 13px; top: 11px; font-size: 10px; }
+  .preview-bottom { left: 11px; right: 11px; bottom: 10px; }
+  .preview-bottom #status { font-size: 10px; }
+  aside {
+    min-height: 0; flex: 1 1 auto; align-self: stretch;
+    display: flex; overflow-x: hidden; overflow-y: auto;
+    overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch;
+    gap: 19px; padding: 0 1px 12px;
+  }
+  .tabs {
+    position: sticky; top: 0; z-index: 5;
+    margin: 0; padding: 5px; background: #282827;
+  }
+  .tabs button { font-size: 11px; padding: 12px 4px; white-space: nowrap; }
+  #controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 23px 16px; padding: 4px 3px; }
+  .control label { font-size: 11px; margin-bottom: 14px; gap: 4px; }
+  .control output { font-size: 10px; }
+  input[type=range] { height: 3px; }
+  input[type=range]::-webkit-slider-thumb { width: 20px; height: 20px; border-width: 3px; }
+  #swatches { flex-wrap: wrap; gap: 12px; }
+  #swatches button { width: 34px; height: 34px; }
+  .editable-color { grid-template-columns: 32px 1fr 88px; }
+  .editable-color input[type=color] { width: 32px; height: 32px; }
+  .editable-color .color-hex { min-height: 34px; font-size: 11px; }
+  #color-editor { gap: 10px; }
+  .output-settings { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .quality select { min-height: 36px; }
+  #transparent { min-width: 40px; min-height: 40px; }
+  .export {
+    position: sticky; bottom: -12px; z-index: 4;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 10px 0 12px; margin-top: 0;
+    background: linear-gradient(to bottom, #141414ee, #141414 15px);
+  }
+  .export button { min-height: 48px; text-align: center; padding: 10px 6px; font-size: 12px; }
+  .credit { padding-bottom: 20px; }
+}
+@media (max-width: 800px) and (orientation: landscape) and (max-height: 530px) {
+  header { flex-basis: 48px; height: 48px; min-height: 48px; }
+  main { flex-direction: row; align-items: stretch; gap: 12px; }
+  #workspace { height: 100%; min-height: 0; flex: 0 0 55%; }
+  aside { flex: 1; min-width: 0; }
+  .preview-meta, .preview-bottom { font-size: 9px; }
+}
