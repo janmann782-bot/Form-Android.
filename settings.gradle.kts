@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FormMobile"
-include(":app")
+rootProject.name = "DithererAndroid"
+include(":ditherer")

@@ -1,0 +1,10 @@
+/* Original mobile layout stays authoritative; this only fixes touch ergonomics. */
+:root { color-scheme: dark; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior: none; }
+body { -webkit-tap-highlight-color: transparent; overscroll-behavior: contain; }
+button, input, select, textarea { touch-action: manipulation; }
+input[type="range"] { min-height: 28px; }
+@media (max-width: 960px) {
+  button, select, input[type="checkbox"] { min-height: 32px; }
+  button:active { opacity: .85; }
+}
